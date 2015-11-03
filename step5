@@ -96,7 +96,7 @@ loop do
     upper_bound = middle - 1
   else # too low
     next_value = chronological_sets[middle+1]["unix_timestamp"]
-    if next_value != unix_search_date && next_value > unix_search_date
+    if next_value > unix_search_date
       # if the next element is greater than the current index's value, there's no exact match in
       # the array, so just return the current element.
       closest_match = chronological_sets[middle]
