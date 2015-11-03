@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require "csv"
+require "json"
+require "open-uri"
+
+FUNDS_FILE = "funds.json"
+FUND_PRICES_FILE = "fund_prices.json"
+
+funds = JSON.parse(File.read(FUNDS_FILE))
+
+symbols = funds.map { |f| f.fetch("symbol") }
+
+url = "http://download.finance.yahoo.com/d/quotes.csv?s=#{symbols.join(",")}&f=sl1"
+
+puts "Fetching: #{url}"
+
+# data is CSV of "symbol,price" like: "VFIAX",194.35
+data = open(url).read
+
+output = []
+
+CSV.parse(data) do |record|
+  output << {
+    symbol: record.first,
+    price:  record.last.to_f,
+  }
+end
+
+File.write(FUND_PRICES_FILE, output.to_json)
+
+puts "Wrote prices to #{FUND_PRICES_FILE}"
