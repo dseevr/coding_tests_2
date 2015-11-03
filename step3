@@ -4,6 +4,8 @@
 
 require "./shared"
 
+# ----- Load data from JSON files ------------------------------------------------------------------
+
 funds = load_funds
 fund_prices = load_fund_prices
 portfolio = load_portfolio
@@ -24,6 +26,8 @@ portfolios_by_symbol = portfolio.inject({}) do |memo, obj|
   memo[obj.fetch("symbol")] = obj
   memo
 end
+
+# ----- Start of application logic -----------------------------------------------------------------
 
 # calculate current portfolio breakdown by asset class
 
