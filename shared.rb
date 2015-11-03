@@ -1,6 +1,7 @@
 
 require "json"
 
+ALLOCATION_SETS_FILE   = "allocation_sets.json"
 FUNDS_FILE             = "funds.json"
 FUND_PRICES_FILE       = "fund_prices.json"
 HISTORICAL_PRICES_FILE = "historical_prices.json"
@@ -15,6 +16,10 @@ def load_json_file(filename)
   end
 end
 
+def load_allocation_sets
+  load_json_file(ALLOCATION_SETS_FILE)
+end
+
 def load_funds
   load_json_file(FUNDS_FILE)
 end
@@ -23,8 +28,20 @@ def load_fund_prices
   load_json_file(FUND_PRICES_FILE)
 end
 
+def load_historical_prices
+  load_json_file(HISTORICAL_PRICES_FILE)
+end
+
 def load_portfolio
   load_json_file(PORTFOLIO_FILE)
+end
+
+def date_string_to_unix_timestamp(s)
+  date_parts = s.split("-").map(&:to_i) # [month, day, year]
+
+  time = Time.new(date_parts[2], date_parts[0], date_parts[1]) # year, month, day
+
+  time.to_i
 end
 
 # normally you'd just use a library for formatting this, but ruby doesn't have one easily

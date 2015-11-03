@@ -1,0 +1,172 @@
+#!/usr/bin/env ruby
+
+require "./shared"
+
+# ----- Check command line args --------------------------------------------------------------------
+
+if ARGV[0].nil?
+  puts "You must supply a search date, e.g.,: #{$0} 6-2-2014"
+  exit 1
+end
+
+search_date = ARGV[0]
+
+# require a valid date format
+raise "bad format, must match m-d-yyyy" unless search_date =~ /\A[1-9]{1,2}-[1-9]{1,2}-[0-9]{4}\z/
+
+unix_search_date = date_string_to_unix_timestamp(search_date)
+
+# ----- Load data from JSON files ------------------------------------------------------------------
+
+funds = load_funds
+fund_prices = load_fund_prices
+historical_prices = load_historical_prices
+portfolio = load_portfolio
+
+# key the data by symbol for future O(1) access
+
+funds_by_symbol = funds.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+fund_prices_by_symbol = fund_prices.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+historical_prices = historical_prices.inject({}) do |memo, obj|
+  symbol = obj.fetch("symbol")
+  price  = obj.fetch("price")
+  date   = obj.fetch("date")
+
+  memo[symbol] ||= {}
+  memo[symbol][date] = price
+  memo
+end
+
+portfolios_by_symbol = portfolio.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+# ----- Start of application logic -----------------------------------------------------------------
+
+# order the allocation sets by time so we can find the earliest/latest dates and check if the
+# supplied date is even valid.  this also lets us binary sort the sets later for O(log(n)) lookup.
+chronological_sets = load_allocation_sets.map do |record|
+    record["unix_timestamp"] = date_string_to_unix_timestamp(record.fetch("date"))
+    record
+end.sort_by do |record|
+  record["unix_timestamp"]
+end
+
+earliest_set = chronological_sets.first
+latest_set   = chronological_sets.last
+
+# make sure the search date is within the bounds of our data
+if unix_search_date < earliest_set["unix_timestamp"] || unix_search_date > latest_set["unix_timestamp"]
+  puts "Search date is outside the bounds of the allocation sets (#{earliest_set["date"]} - #{latest_set["date"]})"
+  exit 1
+end
+
+# ----- Find exact or previous allocation set by target date ---------------------------------------
+
+closest_match = chronological_sets.first
+
+lower_bound = 0
+upper_bound = chronological_sets.size - 1
+
+# this is a modified binary search which returns the next lowest element in the array if the target
+# value does not exist ("most recent one before" according to the instructions).  This is O(log(n))
+# vs the linear scan approach below.
+
+loop do
+  middle = (lower_bound + upper_bound) / 2 # fixnum, no need to floor()
+
+  current_value = chronological_sets[middle]["unix_timestamp"]
+
+  if lower_bound == upper_bound
+    closest_match = chronological_sets[middle]
+    break
+  elsif current_value == unix_search_date
+    closest_match = chronological_sets[middle]
+    break
+  elsif current_value > unix_search_date # too high
+    upper_bound = middle - 1
+  else # too low
+    next_value = chronological_sets[middle+1]["unix_timestamp"]
+    if next_value != unix_search_date && next_value > unix_search_date
+      # if the next element is greater than the current index's value, there's no exact match in
+      # the array, so just return the current element.
+      closest_match = chronological_sets[middle]
+      break
+    else
+      lower_bound = middle + 1
+    end
+  end
+
+end
+
+# alternative, iterative method which is O(n)
+
+# chronological_sets.each_with_index do |cs, i|
+#   current_timestamp = cs["unix_timestamp"]
+
+#   # if we're at the correct set or just went one set past it, stop iterating
+#   if current_timestamp == unix_search_date
+#     closest_match = cs
+#     puts "Exact match found #{closest_match["date"]}"
+#     break
+#   elsif current_timestamp > unix_search_date
+#     puts "Exact match not found, using previous allocation set at #{closest_match["date"]}"
+#     break
+#   else
+#     closest_match = cs
+#   end
+# end
+
+puts
+
+# ----- Output the results -------------------------------------------------------------------------
+
+# output should look like:
+#   Vanguard 500 Index Admiral: 5 shares at $160.30 ea. -- $801.50
+#   Vanguard Total Stock Market Index Fund Admiral: 29 shares at $43.78 ea. -- $1,269.62
+#   Vanguard Long-Term Bond Index: 5 shares at $11.34 ea. -- $56.70
+#   Total: $2,127.82
+
+#   Asset Class Breakdown
+#     U.S. Bonds: 2.67%
+#     U.S. Stocks: 97.34%
+
+value_by_asset_class = Hash.new(0.0)
+total_value_of_assets = 0.0
+
+closest_match.fetch("portfolio").each do |portfolio|
+  symbol = portfolio.fetch("symbol")
+  date   = closest_match["date"]
+
+  name        = funds_by_symbol[symbol].fetch("name")
+  share_count = portfolio.fetch("shares")
+  share_price = historical_prices[symbol][date]
+
+  if share_price.nil?
+    puts "This allocation set exists but is missing price data"
+    exit 1
+  end
+
+  total_value = share_price * share_count
+
+  total_value_of_assets += total_value
+  value_by_asset_class[name] = total_value
+
+  puts "#{name}: #{share_count} shares at #{format_money(share_price)} ea. -- #{format_money(total_value)}"
+end
+
+puts
+puts "Asset Class Breakdown"
+value_by_asset_class.keys.each do |asset_class|
+  percentage = (value_by_asset_class[asset_class] / total_value_of_assets) * 100.0
+  puts "  #{asset_class}: %.1f%%" % (percentage)
+end
