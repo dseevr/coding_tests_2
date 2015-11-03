@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+
+# this is a wholesale copy of step2 + some modifications.  no de-duplication was done.
+
+require "./shared"
+
+funds = load_funds
+fund_prices = load_fund_prices
+portfolio = load_portfolio
+
+# key the data by symbol for future O(1) access
+
+funds_by_symbol = funds.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+fund_prices_by_symbol = fund_prices.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+portfolios_by_symbol = portfolio.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+# calculate current portfolio breakdown by asset class
+
+# output should look like:
+#   Asset Class Breakdown
+#     U.S. Bonds: 2.94%
+#     U.S. Stocks: 97.06%
+
+value_by_asset_class = Hash.new(0.0)
+total_value_of_assets = 0.0
+
+portfolios_by_symbol.keys.map do |symbol|
+  share_count = portfolios_by_symbol[symbol].fetch("shares")
+  share_price = fund_prices_by_symbol[symbol].fetch("price")
+  total_value = share_price * share_count
+
+  asset_class = funds_by_symbol[symbol].fetch("name")
+
+  total_value_of_assets += total_value
+  value_by_asset_class[asset_class] = total_value
+end
+
+puts "Asset Class Breakdown"
+value_by_asset_class.keys.each do |asset_class|
+  percentage = (value_by_asset_class[asset_class] / total_value_of_assets) * 100.0
+  puts "  #{asset_class}: %.1f%%" % (percentage)
+end
