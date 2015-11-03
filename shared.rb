@@ -3,9 +3,10 @@ require "json"
 
 require "active_support"
 
-FUNDS_FILE = "funds.json"
-FUND_PRICES_FILE = "fund_prices.json"
-PORTFOLIO_FILE = "portfolio.json"
+FUNDS_FILE             = "funds.json"
+FUND_PRICES_FILE       = "fund_prices.json"
+HISTORICAL_PRICES_FILE = "historical_prices.json"
+PORTFOLIO_FILE         = "portfolio.json"
 
 
 def load_json_file(filename)

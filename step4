@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+
+require "csv"
+require "open-uri"
+
+require "./shared"
+
+funds = load_funds
+fund_prices = load_fund_prices
+portfolio = load_portfolio
+
+# key the data by symbol for future O(1) access
+
+funds_by_symbol = funds.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+fund_prices_by_symbol = fund_prices.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+portfolios_by_symbol = portfolio.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+symbols = funds_by_symbol.keys
+
+output_array = []
+
+symbols.each do |symbol|
+  # fetch data from 2014-01-01 through 2014-12-31
+  url = "http://ichart.yahoo.com/table.csv?s=#{symbol}&a=0&b=1&c=2014&d=11&e=31&f=2014"
+
+  puts "Fetching: #{url}"
+  csv = CSV.parse(open(url).read, headers: true) do |row|
+
+    # converts 2015-02-03 -> 2-3-2015
+    new_date = row["Date"].split("-").map(&:to_i).tap { |s| s.push(s.shift) }.map(&:to_s).join("-")
+
+    output_array << {
+      "date": new_date,
+      "symbol": symbol,
+      "price": row["Close"].to_f
+    }
+  end
+end
+
+File.write(HISTORICAL_PRICES_FILE, output_array.to_json)
+
+puts "Wrote historical prices to #{HISTORICAL_PRICES_FILE}"
