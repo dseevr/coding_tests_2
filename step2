@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+
+require "./shared"
+
+funds = load_funds
+fund_prices = load_fund_prices
+portfolio = load_portfolio
+
+# key the data by symbol for future O(1) access
+
+funds_by_symbol = funds.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+fund_prices_by_symbol = fund_prices.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+portfolios_by_symbol = portfolio.inject({}) do |memo, obj|
+  memo[obj.fetch("symbol")] = obj
+  memo
+end
+
+# calculate and output current portfolio status
+
+# output should look like:
+#   Vanguard 500 Index Admiral: 5 shares at $173.59 ea. -- $867.95
+#   Vanguard Total Stock Market Index Fund Admiral: 29 shares at $47.18 ea. -- $1,368.22
+#   Vanguard Long-Term Bond Index: 5 shares at $13.54 ea. -- $67.70
+#   Total: $2,303.87
+
+portfolio_value = 0.0
+
+portfolios_by_symbol.keys.each do |symbol|
+  name        = funds_by_symbol[symbol].fetch("name")
+  share_count = portfolios_by_symbol[symbol].fetch("shares")
+  share_price = fund_prices_by_symbol[symbol].fetch("price")
+  total_value = share_price * share_count
+
+  portfolio_value += total_value
+
+  puts "#{name}: #{share_count} shares at #{format_money(share_price)} ea. -- #{format_money(total_value)}"
+end
+
+puts "Total: #{format_money(portfolio_value)}"

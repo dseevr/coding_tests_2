@@ -1,13 +1,11 @@
 #!/usr/bin/env ruby
 
 require "csv"
-require "json"
 require "open-uri"
 
-FUNDS_FILE = "funds.json"
-FUND_PRICES_FILE = "fund_prices.json"
+require "./shared"
 
-funds = JSON.parse(File.read(FUNDS_FILE))
+funds = load_funds
 
 symbols = funds.map { |f| f.fetch("symbol") }
 
