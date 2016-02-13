@@ -159,7 +159,7 @@ closest_match.fetch("portfolio").each do |portfolio|
   total_value = share_price * share_count
 
   total_value_of_assets += total_value
-  value_by_asset_class[name] = total_value
+  value_by_asset_class[name] += total_value
 
   puts "#{name}: #{share_count} shares at #{format_money(share_price)} ea. -- #{format_money(total_value)}"
 end

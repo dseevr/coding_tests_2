@@ -47,7 +47,7 @@ portfolios_by_symbol.keys.map do |symbol|
   asset_class = funds_by_symbol[symbol].fetch("name")
 
   total_value_of_assets += total_value
-  value_by_asset_class[asset_class] = total_value
+  value_by_asset_class[asset_class] += total_value
 end
 
 puts "Asset Class Breakdown"
